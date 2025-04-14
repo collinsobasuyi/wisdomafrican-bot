@@ -1,22 +1,27 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes,
-    filters, CallbackContext
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    ContextTypes, filters
 )
+from fastapi import FastAPI, Request
 from dotenv import load_dotenv
 import openai
 import os
 import logging
 import csv
-from datetime import datetime, time
+import uvicorn
+from datetime import datetime
 
-# === ENV SETUP ===
+# === Load Env ===
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+PORT = int(os.getenv("PORT", 10000))
+
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# === LOGGING SETUP ===
+# === Logging ===
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -25,11 +30,11 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
 logger = logging.getLogger(__name__)
+user_ids = set()
 
-# === GLOBAL ===
-user_ids = set()  # Add user ID when user interacts
-
+# === Mood Options & Proverbs ===
 MOOD_OPTIONS = [
     ["I dey stress 😩", "I no happy 😢"],
     ["I dey okay 😊", "I just wan yarn 🗣️"]
@@ -42,7 +47,7 @@ proverbs = {
     "i just wan yarn": "Talk wetin dey your chest. Mind no suppose carry load alone."
 }
 
-# === HELPERS ===
+# === Logging CSVs ===
 def log_mood(user_name, mood):
     with open("mood_log.csv", mode='a', newline='') as file:
         writer = csv.writer(file)
@@ -53,11 +58,10 @@ def log_feedback(user_name, feedback_text):
         writer = csv.writer(file)
         writer.writerow([datetime.now().isoformat(), user_name, feedback_text])
 
-# === BOT HANDLERS ===
+# === Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_ids.add(user_id)
-
     welcome_message = (
         "👋🏿 Welcome to *WisdomAfrican Bot*! \n\n"
         "I be your wise companion wey sabi give you African proverbs, calm words, and small small encouragement.\n\n"
@@ -103,7 +107,6 @@ async def generate_openai_response(text):
 async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name or "Unknown"
     feedback_text = " ".join(context.args)
-
     if not feedback_text:
         await update.message.reply_text("Type your feedback like this:\n/feedback I like this bot!")
         return
@@ -118,7 +121,6 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             moods = [row[2] for row in reader]
             from collections import Counter
             counts = Counter(moods)
-
             message = "📊 *Mood Stats*\n"
             for mood, count in counts.items():
                 message += f"{mood.title()}: {count}\n"
@@ -126,20 +128,20 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except FileNotFoundError:
         await update.message.reply_text("No mood data found yet.")
 
-# === DAILY PROVERB PUSH ===
-async def send_daily_proverb(context: CallbackContext):
-    proverb = "No matter how hot your anger be, e no go cook yam. 🔥"
-    for user_id in user_ids:
-        try:
-            await context.bot.send_message(chat_id=user_id, text=proverb)
-        except Exception as e:
-            logging.warning(f"Failed to send to {user_id}: {e}")
-
-# === ERROR HANDLING ===
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error(msg="Exception while handling update:", exc_info=context.error)
 
-# === MAIN ENTRY POINT ===
+# === FastAPI Setup ===
+fastapi_app = FastAPI()
+
+@fastapi_app.post("/")
+async def webhook_handler(req: Request):
+    data = await req.json()
+    update = Update.de_json(data, app.bot)
+    await app.process_update(update)
+    return {"ok": True}
+
+# === Main Entrypoint ===
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
@@ -149,7 +151,10 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
 
-    # Daily job at 9:00 AM
-    app.job_queue.run_daily(send_daily_proverb, time=time(hour=9, minute=0))
+    import asyncio
+    async def main():
+        await app.bot.set_webhook(url=WEBHOOK_URL)
+        await app.initialize()
+        uvicorn.run(fastapi_app, host="0.0.0.0", port=PORT)
 
-    app.run_polling()
+    asyncio.run(main())
