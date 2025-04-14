@@ -60,7 +60,25 @@ def log_feedback(user_name, feedback_text):
         writer = csv.writer(file)
         writer.writerow([datetime.now().isoformat(), user_name, feedback_text])
 
-# === Handlers ===
+# === Telegram App (needs to come before FastAPI handler) ===
+app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+# === FastAPI Setup ===
+fastapi_app = FastAPI()
+
+@fastapi_app.post("/")
+async def webhook_handler(req: Request):
+    try:
+        data = await req.json()
+        logging.info(f"Received update: {data}")
+        update = Update.de_json(data, app.bot)
+        await app.process_update(update)
+        return {"ok": True}
+    except Exception as e:
+        logging.exception("Error in webhook_handler")
+        return {"error": str(e)}
+
+# === Telegram Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_ids.add(user_id)
@@ -133,28 +151,18 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error(msg="Exception while handling update:", exc_info=context.error)
 
-# === FastAPI Setup ===
-fastapi_app = FastAPI()
-
-@fastapi_app.post("/")
-async def webhook_handler(req: Request):
-    data = await req.json()
-    update = Update.de_json(data, app.bot)
-    await app.process_update(update)
-    return {"ok": True}
-
-# === Initialize Telegram App and Start Server ===
+# === Main Entrypoint ===
 if __name__ == "__main__":
     nest_asyncio.apply()
 
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-
+    # Register Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("feedback", feedback))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
 
+    # Init Webhook + Run Server
     async def init():
         await app.bot.set_webhook(url=WEBHOOK_URL)
         await app.initialize()
