@@ -49,7 +49,7 @@ proverbs = {
     "i just wan yarn": "Talk wetin dey your chest. Mind no suppose carry load alone."
 }
 
-# === CSV Logging ===
+# === Logging CSVs ===
 def log_mood(user_name, mood):
     with open("mood_log.csv", mode='a', newline='') as file:
         writer = csv.writer(file)
@@ -68,7 +68,12 @@ fastapi_app = FastAPI()
 
 @fastapi_app.post("/")
 async def webhook_handler(req: Request):
+    global app
     try:
+        if app is None:
+            logging.warning("App not initialized yet.")
+            return {"error": "App not ready. Please retry shortly."}
+
         data = await req.json()
         logging.info(f"Received update: {data}")
         update = Update.de_json(data, app.bot)
