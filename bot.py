@@ -60,10 +60,10 @@ def log_feedback(user_name, feedback_text):
         writer = csv.writer(file)
         writer.writerow([datetime.now().isoformat(), user_name, feedback_text])
 
-# === Telegram App (needs to come before FastAPI handler) ===
+# === Telegram App ===
 app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-# === FastAPI Setup ===
+# === FastAPI App ===
 fastapi_app = FastAPI()
 
 @fastapi_app.post("/")
@@ -162,12 +162,13 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
 
-    # Init Webhook + Run Server
-    async def init():
-        await app.bot.set_webhook(url=WEBHOOK_URL)
+    async def run():
         await app.initialize()
+        await app.bot.set_webhook(url=WEBHOOK_URL)
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(init())
+        # Start Uvicorn AFTER app is ready
+        config = uvicorn.Config("bot:fastapi_app", host="0.0.0.0", port=PORT, reload=False)
+        server = uvicorn.Server(config)
+        await server.serve()
 
-    uvicorn.run("bot:fastapi_app", host="0.0.0.0", port=PORT, reload=False)
+    asyncio.run(run())
