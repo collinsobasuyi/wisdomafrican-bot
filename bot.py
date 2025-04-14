@@ -49,7 +49,7 @@ proverbs = {
     "i just wan yarn": "Talk wetin dey your chest. Mind no suppose carry load alone."
 }
 
-# === Logging CSVs ===
+# === CSV Logging ===
 def log_mood(user_name, mood):
     with open("mood_log.csv", mode='a', newline='') as file:
         writer = csv.writer(file)
@@ -60,8 +60,8 @@ def log_feedback(user_name, feedback_text):
         writer = csv.writer(file)
         writer.writerow([datetime.now().isoformat(), user_name, feedback_text])
 
-# === Telegram App ===
-app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+# === Global App Placeholder ===
+app = None
 
 # === FastAPI App ===
 fastapi_app = FastAPI()
@@ -78,7 +78,7 @@ async def webhook_handler(req: Request):
         logging.exception("Error in webhook_handler")
         return {"error": str(e)}
 
-# === Telegram Handlers ===
+# === Telegram Bot Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_ids.add(user_id)
@@ -155,18 +155,20 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     nest_asyncio.apply()
 
-    # Register Handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("feedback", feedback))
-    app.add_handler(CommandHandler("stats", stats))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_error_handler(error_handler)
-
     async def run():
+        global app
+        app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+        # Register handlers
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("feedback", feedback))
+        app.add_handler(CommandHandler("stats", stats))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        app.add_error_handler(error_handler)
+
         await app.initialize()
         await app.bot.set_webhook(url=WEBHOOK_URL)
 
-        # Start Uvicorn AFTER app is ready
         config = uvicorn.Config("bot:fastapi_app", host="0.0.0.0", port=PORT, reload=False)
         server = uvicorn.Server(config)
         await server.serve()
