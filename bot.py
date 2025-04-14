@@ -11,6 +11,8 @@ import logging
 import csv
 import uvicorn
 from datetime import datetime
+import nest_asyncio
+import asyncio
 
 # === Load Env ===
 load_dotenv()
@@ -141,8 +143,10 @@ async def webhook_handler(req: Request):
     await app.process_update(update)
     return {"ok": True}
 
-# === Main Entrypoint ===
+# === Initialize Telegram App and Start Server ===
 if __name__ == "__main__":
+    nest_asyncio.apply()
+
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -151,10 +155,11 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
 
-    import asyncio
-    async def main():
+    async def init():
         await app.bot.set_webhook(url=WEBHOOK_URL)
         await app.initialize()
-        uvicorn.run(fastapi_app, host="0.0.0.0", port=PORT)
 
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(init())
+
+    uvicorn.run("bot:fastapi_app", host="0.0.0.0", port=PORT, reload=False)

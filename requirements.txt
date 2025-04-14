@@ -3,3 +3,5 @@ openai
 fastapi
 uvicorn
 python-dotenv
+nest_asyncio
+
