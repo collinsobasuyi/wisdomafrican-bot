@@ -41,7 +41,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Setup the Telegram bot app
 async def setup_bot():
     global app
-    TOKEN = os.getenv("BOT_TOKEN")
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     app = ApplicationBuilder().token(TOKEN).build()
 
     # Register command handlers
