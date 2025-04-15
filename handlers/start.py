@@ -1,14 +1,31 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ContextTypes, CommandHandler
+import random
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
 
-MOOD_OPTIONS = [
-    ["I dey stress 😩", "I no happy 😢"],
-    ["I dey okay 😊", "I just wan yarn 🗣️"]
+TONE_TAGS = [
+    "my dear",
+    "my personal person",
+    "my friend",
+    "my person",
+    "my own person",
+    "my oga"
 ]
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    welcome_text = "👋🏿 Welcome to WisdomAfrican Bot! How you dey?"
-    reply_markup = ReplyKeyboardMarkup(MOOD_OPTIONS, resize_keyboard=True)
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+def get_friendly_tag():
+    return random.choice(TONE_TAGS)
 
-start_handler = CommandHandler("start", start)
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user.first_name
+    tone = get_friendly_tag()
+
+    welcome_message = (
+        f"Welcome, {tone}!\n\n"
+        f"I'm Wisdom African Bot — built to share comfort, insight, and laughter with you.\n\n"
+        f📌 "You fit tell me how you dey feel, like:\n"
+        f"`i dey stress` or `i no happy`\n\n"
+        f"Na from our culture wisdom dey flow. Let's talk — I dey here for you."
+    )
+
+    await update.message.reply_text(welcome_message)
+
+start_handler = CommandHandler("start", start_command)
