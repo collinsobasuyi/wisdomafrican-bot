@@ -1,56 +1,43 @@
+import os
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
+    ContextTypes,
     CommandHandler,
     MessageHandler,
-    ContextTypes,
     filters,
 )
-from telegram import Update
-import os
-from dotenv import load_dotenv
-
-# Import custom handlers
 from handlers.start import start_handler
 from handlers.feedback import feedback_handler
-from handlers.mood import mood_handler
-from handlers.chat_handler import generate_empathetic_response
+from handlers.mood import handle_mood
+from handlers.ai import ai_response_handler
 
-load_dotenv()
+app = None  # Global app instance
 
-# Declare global app variable
-app = None
-
-# Start command handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await start_handler(update, context)
-
-# Feedback command
-async def feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await feedback_handler(update, context)
-
-# Mood checker (daily or keyword based)
-async def handle_mood(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await mood_handler(update, context)
-
-# Default message → AI mental health support
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_input = update.message.text
-    response = await generate_empathetic_response(user_input)
-    await update.message.reply_text(response)
-
-# Setup the Telegram bot app
 async def setup_bot():
     global app
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Use your env var here
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # Register command handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("feedback", feedback))
-    app.add_handler(CommandHandler("daily", handle_mood))
+    # Register handlers
+    app.add_handler(CommandHandler("start", start_handler))
+    app.add_handler(CommandHandler("feedback", feedback_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message))
 
-    # Text handler for normal messages
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    await app.initialize()  # ✅ IMPORTANT: This fixes the runtime error!
+
+    print("✅ Telegram bot initialized")
 
 def get_app():
     return app
+
+# Route message logic: decide which handler to call
+async def route_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text.lower()
+
+    # Custom logic to detect mood/intent
+    mood_keywords = ["i dey", "i no", "i feel", "i wan yarn", "i dey stress"]
+    if any(phrase in user_text for phrase in mood_keywords):
+        await handle_mood(update, context)
+    else:
+        await ai_response_handler(update, context)
