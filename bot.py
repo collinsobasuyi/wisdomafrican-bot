@@ -3,21 +3,26 @@ from telegram.ext import ApplicationBuilder
 from handlers.start import start_handler
 from handlers.feedback import feedback_handler
 from handlers.mood import mood_handler
+from handlers.intent import intent_handler
+from handlers.daily import daily_handler
 
-# Global bot application
+# Global app object
 app = None
 
 async def setup_bot():
     global app
 
+    # Initialize the bot with your Telegram token
     app = ApplicationBuilder().token(os.getenv("TELEGRAM_BOT_TOKEN")).build()
 
-    # Add all handlers
-    app.add_handler(start_handler)
-    app.add_handler(feedback_handler)
-    app.add_handler(mood_handler)
+    # Register command and message handlers
+    app.add_handler(start_handler)         # /start
+    app.add_handler(feedback_handler)      # /feedback conversation
+    app.add_handler(mood_handler)          # mood logs like "i dey stress"
+    app.add_handler(intent_handler)        # intent/emotion detection
+    app.add_handler(daily_handler)
 
-    # Optionally run polling if local
+    # Optional: Use polling for local testing
     if os.getenv("USE_POLLING") == "true":
         await app.run_polling()
 
