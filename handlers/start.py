@@ -21,7 +21,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_message = (
         f"Welcome, {tone}!\n\n"
         f"I'm Wisdom African Bot — built to share comfort, insight, and laughter with you.\n\n"
-        f📌 "You fit tell me how you dey feel, like:\n"
+        f"You fit tell me how you dey feel, like:\n"
         f"`i dey stress` or `i no happy`\n\n"
         f"Na from our culture wisdom dey flow. Let's talk — I dey here for you."
     )
