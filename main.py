@@ -1,12 +1,11 @@
+import os
+import asyncio
 from fastapi import FastAPI, Request
 from telegram import Update
+import nest_asyncio
 import uvicorn
-import asyncio
-import logging
-
 from bot import setup_bot, get_app
 
-logging.basicConfig(level=logging.INFO)
 fastapi_app = FastAPI()
 
 @fastapi_app.on_event("startup")
@@ -14,14 +13,15 @@ async def startup():
     await setup_bot()
 
 @fastapi_app.post("/")
-async def telegram_webhook(req: Request):
+async def webhook(req: Request):
     app = get_app()
-    if not app:
+    if app is None:
         return {"error": "App not ready"}
-    data = await req.json()
-    update = Update.de_json(data, app.bot)
+    update = Update.de_json(await req.json(), app.bot)
     await app.process_update(update)
-    return {"ok": True"}
+    return {"ok": True}
 
 if __name__ == "__main__":
-    asyncio.run(uvicorn.run("main:fastapi_app", host="0.0.0.0", port=10000))
+    nest_asyncio.apply()
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run("main:fastapi_app", host="0.0.0.0", port=port)
