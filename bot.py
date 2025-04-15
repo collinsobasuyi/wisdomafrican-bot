@@ -49,7 +49,7 @@ proverbs = {
     "i just wan yarn": "Talk wetin dey your chest. Mind no suppose carry load alone."
 }
 
-# === Logging CSVs ===
+# === CSV Logging ===
 def log_mood(user_name, mood):
     with open("mood_log.csv", mode='a', newline='') as file:
         writer = csv.writer(file)
@@ -83,7 +83,7 @@ async def webhook_handler(req: Request):
         logging.exception("Error in webhook_handler")
         return {"error": str(e)}
 
-# === Telegram Bot Handlers ===
+# === Telegram Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_ids.add(user_id)
@@ -156,7 +156,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error(msg="Exception while handling update:", exc_info=context.error)
 
-# === Main Entrypoint ===
+# === Entrypoint ===
 if __name__ == "__main__":
     nest_asyncio.apply()
 
@@ -164,7 +164,6 @@ if __name__ == "__main__":
         global app
         app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-        # Register handlers
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("feedback", feedback))
         app.add_handler(CommandHandler("stats", stats))
