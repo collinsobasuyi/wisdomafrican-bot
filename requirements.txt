@@ -1,7 +1,6 @@
-python-telegram-bot[job-queue]==20.6
-openai
+python-telegram-bot==20.6
 fastapi
 uvicorn
 python-dotenv
+openai
 nest_asyncio
-
